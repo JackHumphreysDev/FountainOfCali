@@ -8,8 +8,15 @@ const warmup = (): Section => ({ name: 'Warm-up', kind: 'warmup', items: [item('
 const mobility = (items: PlanItem[]): Section => ({ name: 'Stretch & mobility', kind: 'mobility', items })
 const strength = (items: PlanItem[]): Section => ({ name: 'Strength & core', kind: 'strength', items })
 
-export const programme: { phase: string; description: string; days: DayTemplate[] } = {
-  phase: 'Foundation · weeks 1–4',
+export type Phase = { id: string; name: string; weeks: number; description: string; extraStrengthSets: number; extraHoldSeconds: number; swaps: Record<string, string> }
+
+export const phases: Phase[] = [
+  { id: 'foundation', name: 'Foundation · weeks 1–4', weeks: 4, description: 'Build the habit with clean, comfortable reps.', extraStrengthSets: 0, extraHoldSeconds: 0, swaps: {} },
+  { id: 'build', name: 'Build · weeks 5–8', weeks: 4, description: 'Add one set to strength work and a little time to holds when form stays steady.', extraStrengthSets: 1, extraHoldSeconds: 5, swaps: {} },
+  { id: 'progress', name: 'Progress · week 9+', weeks: Infinity, description: 'Try the next push-up step if ready; use the easier variation whenever needed.', extraStrengthSets: 1, extraHoldSeconds: 10, swaps: { 'incline-pushup': 'pushup' } },
+]
+
+export const programme: { description: string; days: DayTemplate[] } = {
   description: 'Start with clean, comfortable reps. Leave 2–3 reps in reserve and increase only when form stays steady.',
   days: [
     { weekday: 0, title: 'Gentle reset', subtitle: 'Rest day · 15–20 min easy movement', rest: true, sections: [mobility([item('cat-cow', 1, '8'), item('child-pose', 1, undefined, 60), item('90-90', 1, '8 / side'), item('hamstring', 1, undefined, 45), item('open-book', 1, '6 / side')])] },
@@ -38,14 +45,31 @@ export function weekday(date: string): number {
   return new Date(year, month - 1, day).getDay()
 }
 
-export function planFor(date: string, sports: Sport[]): DayTemplate {
+function dayNumber(date: string): number {
+  const [year, month, day] = date.split('-').map(Number)
+  return Date.UTC(year, month - 1, day) / 86400000
+}
+
+export function phaseFor(startDate: string, date: string): Phase {
+  let week = Math.max(0, Math.floor((dayNumber(date) - dayNumber(startDate)) / 7))
+  for (const phase of phases) {
+    if (week < phase.weeks) return phase
+    week -= phase.weeks
+  }
+  return phases[phases.length - 1]
+}
+
+export function planFor(date: string, sports: Sport[], phaseId = 'foundation'): DayTemplate {
   const base = programme.days[weekday(date)]
+  const phase = phases.find(value => value.id === phaseId) ?? phases[0]
   const multiplier = Math.min(1, ...sports.map(sport => sportBlocks[sport].strengthMultiplier))
   const sections = base.sections.map(section => ({
     ...section,
-    items: section.kind === 'strength' && multiplier < 1
-      ? section.items.map(planItem => ({ ...planItem, sets: planItem.sets ? Math.max(1, Math.ceil(planItem.sets * multiplier)) : undefined }))
-      : section.items,
+    items: section.items.map(planItem => {
+      if (section.kind !== 'strength') return planItem
+      const sets = planItem.sets ? Math.max(1, Math.ceil((planItem.sets + phase.extraStrengthSets) * multiplier)) : undefined
+      return { ...planItem, exerciseId: phase.swaps[planItem.exerciseId] ?? planItem.exerciseId, sets, holdSeconds: planItem.holdSeconds ? planItem.holdSeconds + phase.extraHoldSeconds : undefined }
+    }),
   }))
   for (const sport of sports) {
     sections.splice(1, 0, { name: `${sport} primer`, kind: 'warmup', items: sportBlocks[sport].primer })

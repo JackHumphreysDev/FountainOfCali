@@ -133,3 +133,29 @@ h1, h2, h3, p { margin-top: 0; }
 .loading { min-height: 100vh; display: grid; place-items: center; background: #101714; color: #c9f47c; }
 @media (max-width: 850px) { .content-grid, .history-grid { grid-template-columns: 1fr; }.side-column { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }.side-column .card { margin: 0; }.tip-card { grid-column: 1/-1; }.week-cards { grid-template-columns: repeat(4, 1fr); } }
 @media (max-width: 600px) { .shell { padding: 0 17px 104px; }.topbar { height: 65px; }.brand { font-size: 14px; }.brand-mark { width: 28px; height: 28px; }.top-date { display: none; }.theme-button { margin-left: auto; }.hero { padding: 22px 19px; margin-top: 19px; border-radius: 16px; }.hero-heading { align-items: start; margin-top: 22px; }.hero h1 { font-size: 42px; }.hero-subtitle { font-size: 12px; line-height: 1.5; }.status-stamp { padding: 7px; font-size: 8px; }.phase-pill { display: none; }.progress-wrap { margin-top: 28px; }.content-grid { margin-top: 29px; gap: 10px; }.section-head h2 { font-size: 22px; }.side-column { display: block; }.side-column .card { margin-bottom: 14px; }.plan-section-header { padding: 14px; }.exercise-row { min-height: 62px; padding: 8px 13px; }.bottom-nav { width: calc(100% - 20px); bottom: 8px; justify-content: space-around; }.bottom-nav button { min-width: 0; flex: 1; padding: 8px 2px; flex-direction: column; gap: 4px; font-size: 9px; }.page-panel { padding-top: 35px; }.page-title h1 { font-size: 50px; }.calendar-card, .history-detail { padding: 17px; }.week-cards { grid-template-columns: repeat(2, 1fr); }.week-card { min-height: 165px; }.guide-grid { grid-template-columns: 1fr; }.detail-modal { padding: 19px; }.backup-card { display: block; }.backup-icon { margin-bottom: 17px; } }
+.exercise-entry { border-bottom: 1px solid var(--line); }
+.exercise-entry:last-child { border-bottom: 0; }
+.exercise-entry .exercise-row { border: 0; }
+.exercise-entry.done .exercise-name { text-decoration: line-through; color: var(--muted); }
+.exercise-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; padding: 0 17px 11px 57px; }
+.tool-button { border: 1px solid var(--line); border-radius: 7px; background: var(--surface-2); color: var(--muted); padding: 5px 8px; font-size: 10px; }
+.result-fields { display: flex; gap: 9px; width: 100%; margin-top: 5px; }
+.result-fields label, .preferences-card label { color: var(--muted); font-size: 11px; font-weight: 700; }
+.result-fields input, .preferences-card input { display: block; margin-top: 5px; width: 130px; max-width: 100%; border: 1px solid var(--line); border-radius: 7px; padding: 8px; background: var(--surface-2); color: var(--text); font: inherit; }
+.summary-grid, .phase-roadmap { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+.summary-card { display: flex; flex-direction: column; gap: 7px; }
+.summary-card strong { font-size: 30px; color: var(--lime); }
+.summary-card > span:last-child { font-size: 11px; color: var(--muted); }
+.phase-card h3 { margin: 12px 0 8px; font-size: 16px; }
+.phase-card p { margin: 0; }
+.phase-card.active { border-color: var(--lime); }
+.settings-page .preferences-card { margin: 0 0 15px; }
+.settings-page .backup-card { margin-bottom: 15px; }
+.timer-panel { position: fixed; z-index: 15; right: 20px; bottom: 88px; display: flex; align-items: center; gap: 22px; border: 1px solid #65864d; border-radius: 12px; padding: 12px 14px; background: #21321f; color: #f4f9ec; box-shadow: 0 12px 35px #0008; }
+.timer-panel > div:first-child { display: flex; flex-direction: column; gap: 3px; }
+.timer-panel strong { font-size: 25px; font-variant-numeric: tabular-nums; }
+.timer-actions { display: flex; gap: 5px; }
+.timer-actions button { border: 1px solid #577351; border-radius: 7px; padding: 7px 9px; color: #f4f9ec; background: #344931; font-size: 11px; }
+.offline-video { display: grid; place-items: center; height: 100%; padding: 20px; color: #d5e3c8; text-align: center; font-size: 13px; }
+.calendar-day.not-started { opacity: .35; }
+@media (max-width: 600px) { .summary-grid, .phase-roadmap { grid-template-columns: 1fr; }.summary-grid { gap: 8px; }.summary-card { flex-direction: row; align-items: center; justify-content: space-between; }.summary-card strong { font-size: 23px; }.timer-panel { left: 10px; right: 10px; bottom: 85px; justify-content: space-between; }.exercise-tools { padding-left: 49px; } }
