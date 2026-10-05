@@ -1,6 +1,6 @@
 # Fountain of Cali
 
-A personal strength and mobility planner with a daily checklist, history, editable weekly programme, body measurements, progress photos, optional cloud sync, reminders, and AI suggestions.
+A personal strength and mobility planner with a daily checklist, section difficulty controls, history, editable weekly programme, daily steps and target, body and balance measurements, progress photos, optional cloud sync, reminders, and AI suggestions.
 
 ## Run locally
 
@@ -27,7 +27,7 @@ npm run build
 
 ## Your data
 
-Training logs, measurements, and programme edits stay in browser storage until you explicitly save them to the cloud. Photos stay in IndexedDB until you explicitly upload them. **Settings → Export JSON** backs up training data and measurements, but not photos. Cloud save and load are separate actions with confirmation before replacing existing data. Install from your browser’s Add to Home Screen menu for offline use after the first visit.
+Training logs, steps, measurements, step target, and programme edits stay in browser storage until you explicitly save them to the cloud. Photos stay in IndexedDB until you explicitly upload them. **Settings → Export JSON** backs up training data and measurements, but not photos. Cloud save and load are separate actions with confirmation before replacing existing data. Install from your browser’s Add to Home Screen menu for offline use after the first visit.
 
 ## Deployment
 

@@ -1,9 +1,11 @@
 import { exerciseById } from '../data/exercises'
 import type { PlanItem } from '../data/programme'
 
-export type BodyEntry = { date: string; weightKg?: number; waistCm?: number; hipsCm?: number; chestCm?: number; notes?: string }
+export type BodyEntry = { date: string; weightKg?: number; waistCm?: number; hipsCm?: number; chestCm?: number; steps?: number; balanceLeftSeconds?: number; balanceRightSeconds?: number; movementEase?: number; notes?: string }
 export type BodyLogs = Record<string, BodyEntry>
 export type ProgrammeEdits = Record<string, Partial<PlanItem>>
+export const defaultStepTarget = 10000
+export function validStepTarget(value: unknown): value is number { return Number.isInteger(value) && Number(value) >= 1000 && Number(value) <= 30000 }
 
 const isDate = (date: string) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false
@@ -21,8 +23,11 @@ export function validateBodyLogs(value: unknown): BodyLogs {
     for (const key of ['weightKg', 'waistCm', 'hipsCm', 'chestCm']) {
       if (entry[key] !== undefined && (typeof entry[key] !== 'number' || !Number.isFinite(entry[key]) || Number(entry[key]) <= 0 || Number(entry[key]) > 500)) throw new Error(`Invalid ${key} for ${date}.`)
     }
+    if (entry.steps !== undefined && (!Number.isInteger(entry.steps) || Number(entry.steps) < 0 || Number(entry.steps) > 100000)) throw new Error(`Invalid steps for ${date}.`)
+    for (const key of ['balanceLeftSeconds', 'balanceRightSeconds']) if (entry[key] !== undefined && (!Number.isInteger(entry[key]) || Number(entry[key]) < 0 || Number(entry[key]) > 300)) throw new Error(`Invalid ${key} for ${date}.`)
+    if (entry.movementEase !== undefined && (!Number.isInteger(entry.movementEase) || Number(entry.movementEase) < 1 || Number(entry.movementEase) > 5)) throw new Error(`Invalid movement ease for ${date}.`)
     if (entry.notes !== undefined && (typeof entry.notes !== 'string' || entry.notes.length > 500)) throw new Error(`Invalid note for ${date}.`)
-    result[date] = { date, weightKg: entry.weightKg as number | undefined, waistCm: entry.waistCm as number | undefined, hipsCm: entry.hipsCm as number | undefined, chestCm: entry.chestCm as number | undefined, notes: entry.notes as string | undefined }
+    result[date] = { date, weightKg: entry.weightKg as number | undefined, waistCm: entry.waistCm as number | undefined, hipsCm: entry.hipsCm as number | undefined, chestCm: entry.chestCm as number | undefined, steps: entry.steps as number | undefined, balanceLeftSeconds: entry.balanceLeftSeconds as number | undefined, balanceRightSeconds: entry.balanceRightSeconds as number | undefined, movementEase: entry.movementEase as number | undefined, notes: entry.notes as string | undefined }
   }
   return result
 }

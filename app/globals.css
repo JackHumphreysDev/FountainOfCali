@@ -161,6 +161,20 @@ h1, h2, h3, p { margin-top: 0; }
 .calendar-day.not-started { opacity: .35; }
 @media (max-width: 600px) { .summary-grid, .phase-roadmap { grid-template-columns: 1fr; }.summary-grid { gap: 8px; }.summary-card { flex-direction: row; align-items: center; justify-content: space-between; }.summary-card strong { font-size: 23px; }.timer-panel { left: 10px; right: 10px; bottom: 85px; justify-content: space-between; }.exercise-tools { padding-left: 49px; } }
 .progress-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.difficulty-control { display: grid; gap: 4px; margin-left: auto; min-width: 84px; color: var(--muted); font-size: 10px; }
+.difficulty-control select { width: 100%; border: 1px solid var(--line); border-radius: 6px; padding: 5px; background: var(--surface-2); color: var(--text); font: inherit; }
+.steps-card { margin-bottom: 16px; }
+.steps-card > .field { max-width: 170px; }
+.steps-summary { display: flex; align-items: baseline; gap: 9px; margin: 14px 0; color: var(--muted); font-size: 12px; }
+.steps-summary strong { color: var(--lime); font-size: 27px; }
+.steps-chart { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 6px; height: 115px; }
+.step-day { display: flex; flex-direction: column; min-width: 0; text-align: center; }
+.step-track { display: flex; flex-direction: column; justify-content: end; flex: 1; border-radius: 5px; background: var(--surface-2); overflow: hidden; }
+.step-track span { display: block; width: 100%; border-radius: 5px; background: var(--lime); }
+.step-day small, .chart-caption { color: var(--muted); font-size: 10px; }
+.goal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+.goal-grid h2 { font-size: 16px; }
+.goal-grid p { font-size: 12px; line-height: 1.5; }
 .field { display: block; color: var(--muted); font-size: 11px; font-weight: 700; margin: 12px 0; }
 .field input, .field select, .field textarea { display: block; width: 100%; margin-top: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: var(--surface-2); color: var(--text); font: inherit; }
 .field textarea { min-height: 75px; resize: vertical; }
@@ -169,4 +183,4 @@ h1, h2, h3, p { margin-top: 0; }
 .entry-list { display: grid; gap: 5px; margin-top: 20px; }.entry-list button { text-align: left; border: 1px solid var(--line); border-radius: 7px; padding: 9px; background: var(--surface-2); color: var(--text); font-size: 11px; }
 .photo-card, .programme-editor { margin-top: 16px; }.photo-upload { display: inline-block; cursor: pointer; }.photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin-top: 18px; }.photo-grid figure { margin: 0; }.photo-grid img { display: block; width: 100%; aspect-ratio: 3/4; object-fit: cover; border-radius: 9px; }.photo-grid figcaption { display: flex; justify-content: space-between; padding-top: 6px; color: var(--muted); font-size: 11px; }.photo-grid button { border: 0; background: none; color: var(--lime); cursor: pointer; }
 .programme-editor > p { color: var(--muted); font-size: 12px; }.programme-editor > .field { max-width: 250px; }.edit-section { border-top: 1px solid var(--line); margin-top: 17px; padding-top: 13px; }.edit-section h3 { font-size: 14px; }.edit-row { display: grid; grid-template-columns: 2fr .6fr .8fr .7fr auto; align-items: end; gap: 9px; }.edit-row .tool-button { margin-bottom: 12px; height: 36px; }
-@media (max-width: 750px) { .progress-layout { grid-template-columns: 1fr; }.edit-row { grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line); }.edit-row .field:first-child { grid-column: 1/-1; }.edit-row .tool-button { width: 100%; } }
+@media (max-width: 750px) { .progress-layout, .goal-grid { grid-template-columns: 1fr; }.edit-row { grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line); }.edit-row .field:first-child { grid-column: 1/-1; }.edit-row .tool-button { width: 100%; } }

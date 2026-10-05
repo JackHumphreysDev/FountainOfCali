@@ -2,6 +2,7 @@ export type Sport = 'football' | 'golf' | 'bouldering'
 export type PlanItem = { exerciseId: string; sets?: number; reps?: string; holdSeconds?: number; restSeconds?: number }
 export type Section = { name: string; kind: 'warmup' | 'strength' | 'mobility' | 'cooldown'; items: PlanItem[]; optional?: boolean }
 export type DayTemplate = { weekday: number; title: string; subtitle: string; sections: Section[]; rest?: boolean }
+export type Difficulty = 'easier' | 'planned' | 'harder'
 import type { ProgrammeEdits } from '../lib/phase3'
 
 const item = (exerciseId: string, sets?: number, reps?: string, holdSeconds?: number, restSeconds?: number): PlanItem => ({ exerciseId, sets, reps, holdSeconds, restSeconds })
@@ -60,7 +61,7 @@ export function phaseFor(startDate: string, date: string): Phase {
   return phases[phases.length - 1]
 }
 
-export function planFor(date: string, sports: Sport[], phaseId = 'foundation', edits: ProgrammeEdits = {}): DayTemplate {
+export function planFor(date: string, sports: Sport[], phaseId = 'foundation', edits: ProgrammeEdits = {}, difficulty: Record<string, Difficulty> = {}): DayTemplate {
   const base = programme.days[weekday(date)]
   const phase = phases.find(value => value.id === phaseId) ?? phases[0]
   const multiplier = Math.min(1, ...sports.map(sport => sportBlocks[sport].strengthMultiplier))
@@ -77,5 +78,14 @@ export function planFor(date: string, sports: Sport[], phaseId = 'foundation', e
     sections.splice(1, 0, { name: `${sport} primer`, kind: 'warmup', items: sportBlocks[sport].primer })
     sections.push({ name: `${sport} cooldown`, kind: 'cooldown', items: sportBlocks[sport].cooldown, optional: true })
   }
-  return { ...base, sections }
+  return { ...base, sections: sections.map(section => {
+    const level = difficulty[section.name] ?? 'planned'
+    if (level === 'planned') return section
+    const factor = level === 'easier' ? 0.8 : 1.15
+    return { ...section, items: section.items.map(value => ({ ...value,
+      sets: value.sets && section.kind === 'strength' && level === 'easier' ? Math.max(1, value.sets - 1) : value.sets,
+      reps: value.reps?.replace(/\d+/g, number => String(Math.max(1, Math.round(Number(number) * factor)))),
+      holdSeconds: value.holdSeconds ? Math.max(5, Math.round(value.holdSeconds * factor / 5) * 5) : value.holdSeconds,
+    })) }
+  }) }
 }

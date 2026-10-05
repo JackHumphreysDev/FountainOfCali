@@ -80,3 +80,20 @@ test('phase 3 backup validates measurements and programme edits', () => {
   assert.throws(() => validateEdits({ '4:Strength & core:0': { exerciseId: 'unknown' } }))
   assert.throws(() => validateBackup({ ...data, bodyLogs: { '2026-10-05': { weightKg: -1 } } }, '2026-10-05'))
 })
+
+test('section difficulty keeps completion keys stable and step data survives backup', () => {
+  const date = '2026-10-08'
+  const planned = planFor(date, [])
+  const easier = planFor(date, [], 'foundation', {}, { 'Strength & core': 'easier' })
+  const harder = planFor(date, [], 'foundation', {}, { 'Strength & core': 'harder' })
+  const section = planned.sections.find(value => value.kind === 'strength')!
+  const easy = easier.sections.find(value => value.kind === 'strength')!
+  const hard = harder.sections.find(value => value.kind === 'strength')!
+  assert.ok(easy.items[0].sets! < section.items[0].sets!)
+  assert.notEqual(hard.items[0].reps, section.items[0].reps)
+  assert.equal(itemKey(section.name, 0, section.items[0].exerciseId), itemKey(easy.name, 0, easy.items[0].exerciseId))
+  const backup = { version: 4, startDate: date, logs: { [date]: { sportFlags: [], completed: [], sectionDifficulty: { 'Strength & core': 'easier' } } }, bodyLogs: { [date]: { steps: 11234, balanceLeftSeconds: 25, movementEase: 4 } }, edits: {}, stepTarget: 10000 }
+  assert.equal(validateBackup(backup, date).bodyLogs[date].steps, 11234)
+  assert.throws(() => validateBackup({ ...backup, stepTarget: 500 }, date))
+  assert.throws(() => validateImport({ [date]: { sportFlags: [], completed: [], sectionDifficulty: { x: 'extreme' } } }))
+})
