@@ -1,4 +1,5 @@
 import { defaultSports, phaseFor, phases, planFor, weekday, type Sport } from '../data/programme'
+import { validateBodyLogs, validateEdits, type BodyLogs, type ProgrammeEdits } from './phase3'
 
 export type DayLog = {
   sportFlags: Sport[]
@@ -34,24 +35,24 @@ export function itemKey(sectionName: string, itemIndex: number, exerciseId: stri
   return `${sectionName}:${itemIndex}:${exerciseId}`
 }
 
-export function progress(date: string, log: DayLog, phaseId = 'foundation') {
-  const plan = planFor(date, log.sportFlags, phaseId)
+export function progress(date: string, log: DayLog, phaseId = 'foundation', edits: ProgrammeEdits = {}) {
+  const plan = planFor(date, log.sportFlags, phaseId, edits)
   const keys = plan.sections.flatMap(section => section.optional ? [] : section.items.map((item, itemIndex) => itemKey(section.name, itemIndex, item.exerciseId)))
   const done = keys.filter(key => log.completed.includes(key)).length
   return { done, total: keys.length, rest: Boolean(plan.rest), status: plan.rest && done === 0 ? 'rest' : done === keys.length ? 'complete' : done ? 'partial' : 'missed' }
 }
 
-export function statusFor(logs: Logs, date: string, startDate: string, today: string) {
+export function statusFor(logs: Logs, date: string, startDate: string, today: string, edits: ProgrammeEdits = {}) {
   if (date < startDate) return 'not-started'
   if (date > today) return 'future'
-  return progress(date, effectiveLog(logs, date), phaseIdFor(logs, date, startDate)).status
+  return progress(date, effectiveLog(logs, date), phaseIdFor(logs, date, startDate), edits).status
 }
 
-export function streaks(logs: Logs, startDate: string, today: string) {
+export function streaks(logs: Logs, startDate: string, today: string, edits: ProgrammeEdits = {}) {
   let current = 0
   let longest = 0
   for (let date = startDate; date <= today; date = addDays(date, 1)) {
-    const status = statusFor(logs, date, startDate, today)
+    const status = statusFor(logs, date, startDate, today, edits)
     if (status === 'complete') current++
     else if (status !== 'rest' && date !== today) current = 0
     longest = Math.max(longest, current)
@@ -59,7 +60,7 @@ export function streaks(logs: Logs, startDate: string, today: string) {
   return { current, longest }
 }
 
-export function weeklySummary(logs: Logs, startDate: string, today: string) {
+export function weeklySummary(logs: Logs, startDate: string, today: string, edits: ProgrammeEdits = {}) {
   const monday = addDays(today, -((weekday(today) + 6) % 7))
   const first = monday > startDate ? monday : startDate
   let scheduled = 0
@@ -67,10 +68,10 @@ export function weeklySummary(logs: Logs, startDate: string, today: string) {
   let stretchSeconds = 0
   for (let date = first; date <= today; date = addDays(date, 1)) {
     const log = effectiveLog(logs, date)
-    const plan = planFor(date, log.sportFlags, phaseIdFor(logs, date, startDate))
+    const plan = planFor(date, log.sportFlags, phaseIdFor(logs, date, startDate), edits)
     if (!plan.rest) {
       scheduled++
-      if (progress(date, log, phaseIdFor(logs, date, startDate)).status === 'complete') sessionsDone++
+      if (progress(date, log, phaseIdFor(logs, date, startDate), edits).status === 'complete') sessionsDone++
     }
     for (const section of plan.sections) {
       if (section.kind !== 'mobility' && section.kind !== 'cooldown') continue
@@ -111,12 +112,12 @@ export function validateImport(value: unknown): Logs {
   return logs
 }
 
-export function validateBackup(value: unknown, fallbackStartDate: string): { startDate: string; logs: Logs } {
+export function validateBackup(value: unknown, fallbackStartDate: string): { startDate: string; logs: Logs; bodyLogs: BodyLogs; edits: ProgrammeEdits } {
   if (typeof value === 'object' && value !== null && 'version' in value) {
     const backup = value as Record<string, unknown>
-    if (backup.version !== 2 || typeof backup.startDate !== 'string' || !validDate(backup.startDate)) throw new Error('Backup has an invalid version or start date.')
-    return { startDate: backup.startDate, logs: validateImport(backup.logs) }
+    if (![2, 3].includes(Number(backup.version)) || typeof backup.startDate !== 'string' || !validDate(backup.startDate)) throw new Error('Backup has an invalid version or start date.')
+    return { startDate: backup.startDate, logs: validateImport(backup.logs), bodyLogs: backup.version === 3 ? validateBodyLogs(backup.bodyLogs ?? {}) : {}, edits: backup.version === 3 ? validateEdits(backup.edits ?? {}) : {} }
   }
   const logs = validateImport(value)
-  return { startDate: Object.keys(logs).sort()[0] ?? fallbackStartDate, logs }
+  return { startDate: Object.keys(logs).sort()[0] ?? fallbackStartDate, logs, bodyLogs: {}, edits: {} }
 }

@@ -4,8 +4,15 @@ import { useEffect, useRef, useState } from 'react'
 import { exerciseById, type Exercise } from '../data/exercises'
 import { phaseFor, phases, planFor, programme, sportBlocks, type Sport } from '../data/programme'
 import { addDays, effectiveLog, itemKey, localDate, phaseIdFor, progress, statusFor, streaks, validateBackup, validateImport, weeklySummary, type DayLog, type Logs } from '../lib/training'
+import { validateBodyLogs, validateEdits, type BodyLogs, type ProgrammeEdits } from '../lib/phase3'
+import { ProgressView } from './progress'
+import { CloudPanel, type Snapshot } from './cloud-panel'
+import { Reminders } from './reminders'
+import { Advice } from './advice'
+import { cloud } from '../lib/cloud'
+import type { User } from '@supabase/supabase-js'
 
-type Tab = 'today' | 'history' | 'programme' | 'settings'
+type Tab = 'today' | 'history' | 'progress' | 'programme' | 'settings'
 const storageKey = 'fountain-of-cali:v1'
 const startDateKey = 'fountain-of-cali:start-date'
 type Timer = { label: string; duration: number; remaining: number; running: boolean; endAt: number }
@@ -18,6 +25,9 @@ export function App() {
   const [selected, setSelected] = useState('')
   const [tab, setTab] = useState<Tab>('today')
   const [logs, setLogs] = useState<Logs>({})
+  const [bodyLogs, setBodyLogs] = useState<BodyLogs>({})
+  const [edits, setEdits] = useState<ProgrammeEdits>({})
+  const [cloudUser, setCloudUser] = useState<User | null>(null)
   const [ready, setReady] = useState(false)
   const [detail, setDetail] = useState<Exercise | null>(null)
   const [month, setMonth] = useState('')
@@ -25,6 +35,7 @@ export function App() {
   const [light, setLight] = useState(false)
   const [startDate, setStartDate] = useState('')
   const [openLog, setOpenLog] = useState('')
+  const [editDay, setEditDay] = useState(1)
   const [timer, setTimer] = useState<Timer | null>(null)
   const [offline, setOffline] = useState(false)
   const importRef = useRef<HTMLInputElement>(null)
@@ -41,8 +52,10 @@ export function App() {
       const saved = localStorage.getItem(storageKey)
       const restored = saved ? validateImport(JSON.parse(saved)) : {}
       setLogs(restored)
+      setBodyLogs(validateBodyLogs(JSON.parse(localStorage.getItem('fountain-of-cali:body') ?? '{}')))
+      setEdits(validateEdits(JSON.parse(localStorage.getItem('fountain-of-cali:edits') ?? '{}')))
       setStartDate(localStorage.getItem(startDateKey) ?? Object.keys(restored).sort()[0] ?? now)
-    } catch { setMessage('Saved data could not be read. Import a backup if you have one.') }
+    } catch { setStartDate(now); setMessage('Saved data could not be read. Import a backup if you have one.') }
     setLight(localStorage.getItem('fountain-of-cali:light') === 'true')
     setOffline(!navigator.onLine)
     setReady(true)
@@ -50,8 +63,16 @@ export function App() {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => { if (ready) localStorage.setItem(storageKey, JSON.stringify(logs)) }, [logs, ready])
+  useEffect(() => { if (ready) localStorage.setItem('fountain-of-cali:body', JSON.stringify(bodyLogs)) }, [bodyLogs, ready])
+  useEffect(() => { if (ready) localStorage.setItem('fountain-of-cali:edits', JSON.stringify(edits)) }, [edits, ready])
   useEffect(() => { if (ready && startDate) localStorage.setItem(startDateKey, startDate) }, [ready, startDate])
   useEffect(() => { if (ready) localStorage.setItem('fountain-of-cali:light', String(light)) }, [light, ready])
+  useEffect(() => {
+    if (!cloud) return
+    void cloud.auth.getUser().then(({ data }) => setCloudUser(data.user))
+    const { data } = cloud.auth.onAuthStateChange((_event, session) => setCloudUser(session?.user ?? null))
+    return () => data.subscription.unsubscribe()
+  }, [])
   useEffect(() => {
     const onConnection = () => setOffline(!navigator.onLine)
     window.addEventListener('online', onConnection)
@@ -82,10 +103,10 @@ export function App() {
   const phaseId = phaseIdFor(logs, selected, startDate)
   const phase = phases.find(value => value.id === phaseId) ?? phases[0]
   const currentPhase = phaseFor(startDate, today)
-  const plan = planFor(selected, log.sportFlags, phaseId)
-  const tally = progress(selected, log, phaseId)
-  const streak = streaks(logs, startDate, today)
-  const week = weeklySummary(logs, startDate, today)
+  const plan = planFor(selected, log.sportFlags, phaseId, edits)
+  const tally = progress(selected, log, phaseId, edits)
+  const streak = streaks(logs, startDate, today, edits)
+  const week = weeklySummary(logs, startDate, today, edits)
   const isFuture = selected > today
   const update = (change: Partial<DayLog>) => setLogs(current => ({ ...current, [selected]: { ...effectiveLog(current, selected), phaseId: phaseIdFor(current, selected, startDate), ...change } }))
   const setResult = (key: string, field: 'reps' | 'seconds', value: string) => {
@@ -107,10 +128,10 @@ export function App() {
   const calendarOffset = (monthDate.getDay() + 6) % 7
   const monthName = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' }).format(monthDate)
   const monthDates = Array.from({ length: monthLength }, (_, index) => `${month}-${String(index + 1).padStart(2, '0')}`)
-  const monthComplete = monthDates.filter(date => statusFor(logs, date, startDate, today) === 'complete').length
+  const monthComplete = monthDates.filter(date => statusFor(logs, date, startDate, today, edits) === 'complete').length
   const exportData = () => {
     const link = document.createElement('a')
-    link.href = URL.createObjectURL(new Blob([JSON.stringify({ version: 2, startDate, logs }, null, 2)], { type: 'application/json' }))
+    link.href = URL.createObjectURL(new Blob([JSON.stringify({ version: 3, startDate, logs, bodyLogs, edits }, null, 2)], { type: 'application/json' }))
     link.download = `fountain-of-cali-backup-${today}.json`
     link.click()
     URL.revokeObjectURL(link.href)
@@ -121,11 +142,14 @@ export function App() {
       const imported = validateBackup(JSON.parse(await file.text()), today)
       if (!window.confirm(`Replace your current logs with ${Object.keys(imported.logs).length} days from this backup?`)) return
       setLogs(imported.logs)
+      setBodyLogs(imported.bodyLogs)
+      setEdits(imported.edits)
       setStartDate(imported.startDate)
       setMessage('Backup imported.')
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Invalid backup.') }
     if (importRef.current) importRef.current.value = ''
   }
+  const loadSnapshot = (value: Snapshot) => { setLogs(value.logs); setBodyLogs(value.bodyLogs); setEdits(value.edits); setStartDate(value.startDate) }
 
   return <div className={light ? 'app light' : 'app'}>
     <div className="shell">
@@ -177,14 +201,16 @@ export function App() {
           </aside></div>
         </>}
 
-        {tab === 'history' && <section className="page-panel"><div className="page-title"><span className="small-label">YOUR CONSISTENCY</span><h1>History<span className="accent-dot">.</span></h1><p>Look back at the work you’ve put in, one day at a time.</p></div><div className="summary-grid"><div className="card summary-card"><span className="small-label">CURRENT STREAK</span><strong>{streak.current}</strong><span>days · longest {streak.longest}</span></div><div className="card summary-card"><span className="small-label">THIS WEEK</span><strong>{week.completionPercent}%</strong><span>{week.sessionsDone} / {week.scheduled} sessions</span></div><div className="card summary-card"><span className="small-label">MOBILITY TIME</span><strong>{week.stretchMinutes}</strong><span>minutes this week</span></div></div><div className="history-grid"><div className="card calendar-card"><div className="calendar-top"><div><h2>{monthName}</h2><p><strong>{monthComplete}</strong> completed days this month</p></div><div className="calendar-arrows"><button onClick={() => setMonth(localDate(new Date(monthDate.getFullYear(), monthDate.getMonth() - 1, 1)).slice(0, 7))} aria-label="Previous month">‹</button><button onClick={() => setMonth(localDate(new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 1)).slice(0, 7))} aria-label="Next month">›</button></div></div><div className="calendar-grid">{['M','T','W','T','F','S','S'].map((day, index) => <span className="calendar-weekday" key={index}>{day}</span>)}{Array.from({ length: calendarOffset }, (_, index) => <span key={`blank-${index}`} />)}{monthDates.map(date => { const status = statusFor(logs, date, startDate, today); return <button key={date} className={`calendar-day ${status} ${selected === date ? 'selected' : ''}`} onClick={() => setSelected(date)} aria-label={`${formatDate(date)}: ${status}`} aria-current={date === today ? 'date' : undefined}>{Number(date.slice(-2))}</button> })}</div><div className="calendar-legend"><span><i className="legend-complete" /> Complete</span><span><i className="legend-partial" /> Partial</span><span><i className="legend-missed" /> Missed</span><span><i className="legend-rest" /> Rest</span></div></div><div className="card history-detail"><span className="small-label">DAY DETAIL</span><h2>{formatDate(selected)}</h2><p>{plan.title} · {tally.done} / {tally.total} done</p><div className={`history-status ${tally.status}`}>{statusFor(logs, selected, startDate, today).replace('-', ' ')}</div>{plan.sections.map(section => <div className="history-section" key={section.name}><h3>{section.name}</h3>{section.items.map((item, index) => <div key={index} className="history-item"><span className={log.completed.includes(itemKey(section.name, index, item.exerciseId)) ? 'history-tick yes' : 'history-tick'}>{log.completed.includes(itemKey(section.name, index, item.exerciseId)) ? '✓' : '·'}</span><span>{exerciseById[item.exerciseId].name}{log.actuals?.[itemKey(section.name, index, item.exerciseId)]?.reps !== undefined && ` · ${log.actuals[itemKey(section.name, index, item.exerciseId)].reps} reps`}{log.actuals?.[itemKey(section.name, index, item.exerciseId)]?.seconds !== undefined && ` · ${log.actuals[itemKey(section.name, index, item.exerciseId)].seconds}s`}</span></div>)}</div>)}<button className="text-link" onClick={() => setTab('today')}>Open this day’s checklist →</button></div></div></section>}
+        {tab === 'history' && <section className="page-panel"><div className="page-title"><span className="small-label">YOUR CONSISTENCY</span><h1>History<span className="accent-dot">.</span></h1><p>Look back at the work you’ve put in, one day at a time.</p></div><div className="summary-grid"><div className="card summary-card"><span className="small-label">CURRENT STREAK</span><strong>{streak.current}</strong><span>days · longest {streak.longest}</span></div><div className="card summary-card"><span className="small-label">THIS WEEK</span><strong>{week.completionPercent}%</strong><span>{week.sessionsDone} / {week.scheduled} sessions</span></div><div className="card summary-card"><span className="small-label">MOBILITY TIME</span><strong>{week.stretchMinutes}</strong><span>minutes this week</span></div></div><div className="history-grid"><div className="card calendar-card"><div className="calendar-top"><div><h2>{monthName}</h2><p><strong>{monthComplete}</strong> completed days this month</p></div><div className="calendar-arrows"><button onClick={() => setMonth(localDate(new Date(monthDate.getFullYear(), monthDate.getMonth() - 1, 1)).slice(0, 7))} aria-label="Previous month">‹</button><button onClick={() => setMonth(localDate(new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 1)).slice(0, 7))} aria-label="Next month">›</button></div></div><div className="calendar-grid">{['M','T','W','T','F','S','S'].map((day, index) => <span className="calendar-weekday" key={index}>{day}</span>)}{Array.from({ length: calendarOffset }, (_, index) => <span key={`blank-${index}`} />)}{monthDates.map(date => { const status = statusFor(logs, date, startDate, today, edits); return <button key={date} className={`calendar-day ${status} ${selected === date ? 'selected' : ''}`} onClick={() => setSelected(date)} aria-label={`${formatDate(date)}: ${status}`} aria-current={date === today ? 'date' : undefined}>{Number(date.slice(-2))}</button> })}</div><div className="calendar-legend"><span><i className="legend-complete" /> Complete</span><span><i className="legend-partial" /> Partial</span><span><i className="legend-missed" /> Missed</span><span><i className="legend-rest" /> Rest</span></div></div><div className="card history-detail"><span className="small-label">DAY DETAIL</span><h2>{formatDate(selected)}</h2><p>{plan.title} · {tally.done} / {tally.total} done</p><div className={`history-status ${tally.status}`}>{statusFor(logs, selected, startDate, today, edits).replace('-', ' ')}</div>{plan.sections.map(section => <div className="history-section" key={section.name}><h3>{section.name}</h3>{section.items.map((item, index) => <div key={index} className="history-item"><span className={log.completed.includes(itemKey(section.name, index, item.exerciseId)) ? 'history-tick yes' : 'history-tick'}>{log.completed.includes(itemKey(section.name, index, item.exerciseId)) ? '✓' : '·'}</span><span>{exerciseById[item.exerciseId].name}{log.actuals?.[itemKey(section.name, index, item.exerciseId)]?.reps !== undefined && ` · ${log.actuals[itemKey(section.name, index, item.exerciseId)].reps} reps`}{log.actuals?.[itemKey(section.name, index, item.exerciseId)]?.seconds !== undefined && ` · ${log.actuals[itemKey(section.name, index, item.exerciseId)].seconds}s`}</span></div>)}</div>)}<button className="text-link" onClick={() => setTab('today')}>Open this day’s checklist →</button></div></div></section>}
 
-        {tab === 'programme' && <section className="page-panel"><div className="page-title"><span className="small-label">THE ROUTINE</span><h1>Programme<span className="accent-dot">.</span></h1><p>{programme.description}</p></div><div className="programme-heading"><div><span className="small-label">CURRENT PHASE</span><h2>{currentPhase.name}</h2></div><span>Repeat weekly</span></div><div className="phase-roadmap">{phases.map(value => <div className={`card phase-card ${value.id === currentPhase.id ? 'active' : ''}`} key={value.id}><span className="small-label">{value.id === currentPhase.id ? 'NOW' : 'PHASE'}</span><h3>{value.name}</h3><p>{value.description}</p></div>)}</div><div className="week-cards">{programme.days.map(day => <button className="week-card" key={day.weekday} onClick={() => { const date = addDays(today, (day.weekday - new Date(`${today}T12:00:00`).getDay() + 7) % 7); setSelected(date); setTab('today') }}><span>{weekdays[day.weekday].slice(0, 3).toUpperCase()}</span><h3>{day.title}</h3><p>{day.subtitle}</p><small>{day.sections.reduce((sum, section) => sum + section.items.length, 0)} movements ↗</small></button>)}</div><div className="programme-note"><strong>Progress at your pace.</strong> Start with the listed regressions. Add reps or time only when every set feels controlled. Football stays light on Monday and Tuesday; Sunday is recovery.</div></section>}
+        {tab === 'progress' && <ProgressView today={today} entries={bodyLogs} user={cloudUser} onSave={entry => setBodyLogs(current => ({ ...current, [entry.date]: entry }))} onDelete={date => setBodyLogs(current => { const next = { ...current }; delete next[date]; return next })} onMessage={setMessage} />}
 
-        {tab === 'settings' && <section className="page-panel settings-page"><div className="page-title"><span className="small-label">YOUR DATA</span><h1>Settings<span className="accent-dot">.</span></h1><p>Keep a copy of your training history.</p></div><div className="card preferences-card"><h2>Programme start</h2><p>Phases advance automatically every four weeks. Changing this date keeps days already logged in their original phase.</p><label htmlFor="programme-start">Start date</label><input id="programme-start" type="date" max={today} value={startDate} onChange={event => { if (event.target.value) setStartDate(event.target.value) }} /></div><div className="card backup-card"><div className="backup-icon">⇩</div><div><h2>Back up your progress</h2><p>Logs live in this browser. Export a JSON file regularly; you can restore it here or in another browser.</p><div className="backup-actions"><button className="primary-button" onClick={exportData}>Export JSON</button><button className="secondary-button" onClick={() => importRef.current?.click()}>Import JSON</button><input ref={importRef} type="file" accept="application/json,.json" hidden onChange={event => void importData(event.target.files?.[0])} /></div></div></div><div className="card preferences-card"><h2>Install on your phone</h2><p>Use your browser’s Add to Home Screen or Install app menu. After your first online visit, the plan and saved logs remain available offline. Exercise videos need a connection.</p></div><div className="card preferences-card"><h2>Appearance</h2><p>Choose the theme that feels right for your session.</p><button className="secondary-button" onClick={() => setLight(value => !value)}>{light ? 'Use dark mode' : 'Use light mode'}</button></div><p className="safety-note">Stretch only to mild tension. Stop if anything hurts sharply; seek professional advice if a problem persists.</p></section>}
+        {tab === 'programme' && <section className="page-panel"><div className="page-title"><span className="small-label">THE ROUTINE</span><h1>Programme<span className="accent-dot">.</span></h1><p>{programme.description}</p></div><div className="programme-heading"><div><span className="small-label">CURRENT PHASE</span><h2>{currentPhase.name}</h2></div><span>Repeat weekly</span></div><div className="phase-roadmap">{phases.map(value => <div className={`card phase-card ${value.id === currentPhase.id ? 'active' : ''}`} key={value.id}><span className="small-label">{value.id === currentPhase.id ? 'NOW' : 'PHASE'}</span><h3>{value.name}</h3><p>{value.description}</p></div>)}</div><div className="week-cards">{programme.days.map(day => <button className="week-card" key={day.weekday} onClick={() => { const date = addDays(today, (day.weekday - new Date(`${today}T12:00:00`).getDay() + 7) % 7); setSelected(date); setTab('today') }}><span>{weekdays[day.weekday].slice(0, 3).toUpperCase()}</span><h3>{day.title}</h3><p>{day.subtitle}</p><small>{day.sections.reduce((sum, section) => sum + section.items.length, 0)} movements ↗</small></button>)}</div><div className="card programme-editor"><h2>Edit your weekly plan</h2><p>Changes apply to this weekday from now on. Exercise swaps can change how older checklists display.</p><label className="field">Weekday<select value={editDay} onChange={event => setEditDay(Number(event.target.value))}>{weekdays.map((name, index) => <option value={index} key={name}>{name}</option>)}</select></label>{programme.days[editDay].sections.map(section => <div className="edit-section" key={section.name}><h3>{section.name}</h3>{section.items.map((item, index) => { const key = `${editDay}:${section.name}:${index}`; const edit = edits[key] ?? {}; const change = (field: 'exerciseId' | 'sets' | 'reps' | 'holdSeconds', value: string) => { if ((field === 'sets' || field === 'holdSeconds') && value && (!/^\d+$/.test(value) || Number(value) > (field === 'sets' ? 20 : 3600))) return; setEdits(current => ({ ...current, [key]: field === 'exerciseId' ? { ...current[key], exerciseId: value, reps: '', holdSeconds: 0 } : { ...current[key], [field]: field === 'reps' ? value : value ? Number(value) : 0 } })) };  return <div className="edit-row" key={key}><label className="field">Exercise<select value={edit.exerciseId ?? item.exerciseId} onChange={event => change('exerciseId', event.target.value)}>{Object.values(exerciseById).map(exercise => <option key={exercise.id} value={exercise.id}>{exercise.name}</option>)}</select></label><label className="field">Sets<input type="number" min="1" max="20" value={edit.sets === 0 ? '' : edit.sets ?? item.sets ?? ''} onChange={event => change('sets', event.target.value)} /></label><label className="field">Reps<input maxLength={30} value={edit.reps ?? item.reps ?? ''} onChange={event => change('reps', event.target.value)} /></label><label className="field">Hold sec<input type="number" min="1" max="3600" value={edit.holdSeconds === 0 ? '' : edit.holdSeconds ?? item.holdSeconds ?? ''} onChange={event => change('holdSeconds', event.target.value)} /></label><button className="tool-button" onClick={() => setEdits(current => { const next = { ...current }; delete next[key]; return next })}>Reset</button></div> })}</div>)}</div><div className="programme-note"><strong>Progress at your pace.</strong> Start with the listed regressions. Add reps or time only when every set feels controlled. Football stays light on Monday and Tuesday; Sunday is recovery.</div></section>}
+
+        {tab === 'settings' && <section className="page-panel settings-page"><div className="page-title"><span className="small-label">YOUR DATA</span><h1>Settings<span className="accent-dot">.</span></h1><p>Keep a copy of your training history.</p></div><CloudPanel snapshot={{ version: 3, startDate, logs, bodyLogs, edits }} onLoad={loadSnapshot} onMessage={setMessage} user={cloudUser} /><Reminders user={cloudUser} onMessage={setMessage} /><Advice user={cloudUser} snapshot={{ version: 3, startDate, logs, bodyLogs, edits }} onMessage={setMessage} /><div className="card preferences-card"><h2>Programme start</h2><p>Phases advance automatically every four weeks. Changing this date keeps days already logged in their original phase.</p><label htmlFor="programme-start">Start date</label><input id="programme-start" type="date" max={today} value={startDate} onChange={event => { if (event.target.value) setStartDate(event.target.value) }} /></div><div className="card backup-card"><div className="backup-icon">⇩</div><div><h2>Back up your progress</h2><p>JSON includes logs, measurements and programme edits. Photos are backed up separately from Cloud sync.</p><div className="backup-actions"><button className="primary-button" onClick={exportData}>Export JSON</button><button className="secondary-button" onClick={() => importRef.current?.click()}>Import JSON</button><input ref={importRef} type="file" accept="application/json,.json" hidden onChange={event => void importData(event.target.files?.[0])} /></div></div></div><div className="card preferences-card"><h2>Install on your phone</h2><p>Use your browser’s Add to Home Screen or Install app menu. After your first online visit, the plan and saved logs remain available offline. Exercise videos need a connection.</p></div><div className="card preferences-card"><h2>Appearance</h2><p>Choose the theme that feels right for your session.</p><button className="secondary-button" onClick={() => setLight(value => !value)}>{light ? 'Use dark mode' : 'Use light mode'}</button></div><p className="safety-note">Stretch only to mild tension. Stop if anything hurts sharply; seek professional advice if a problem persists.</p></section>}
       </main>
 
-      <nav className="bottom-nav" aria-label="Main navigation">{([['today', '◉', 'Today'], ['history', '▦', 'History'], ['programme', '▤', 'Programme'], ['settings', '⚙', 'Settings']] as const).map(([key, icon, label]) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => chooseTab(key)} aria-current={tab === key ? 'page' : undefined}><span className="nav-icon">{icon}</span><span>{label}</span></button>)}</nav>
+      <nav className="bottom-nav" aria-label="Main navigation">{([['today', '◉', 'Today'], ['history', '▦', 'History'], ['progress', '◌', 'Progress'], ['programme', '▤', 'Programme'], ['settings', '⚙', 'Settings']] as const).map(([key, icon, label]) => <button key={key} className={tab === key ? 'active' : ''} onClick={() => chooseTab(key)} aria-current={tab === key ? 'page' : undefined}><span className="nav-icon">{icon}</span><span>{label}</span></button>)}</nav>
     </div>
 
     {timer && <div className="timer-panel" role="timer" aria-label={timer.label}><div><span className="small-label">{timer.label}</span><strong>{Math.floor(timer.remaining / 60)}:{String(timer.remaining % 60).padStart(2, '0')}</strong></div><div className="timer-actions"><button onClick={() => setTimer(current => current && (current.running ? { ...current, running: false } : { ...current, running: true, endAt: Date.now() + current.remaining * 1000 }))}>{timer.running ? 'Pause' : 'Resume'}</button><button onClick={() => setTimer(current => current && { ...current, remaining: current.duration, running: false })}>Reset</button><button onClick={() => setTimer(null)} aria-label="Close timer">×</button></div></div>}

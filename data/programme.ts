@@ -2,6 +2,7 @@ export type Sport = 'football' | 'golf' | 'bouldering'
 export type PlanItem = { exerciseId: string; sets?: number; reps?: string; holdSeconds?: number; restSeconds?: number }
 export type Section = { name: string; kind: 'warmup' | 'strength' | 'mobility' | 'cooldown'; items: PlanItem[]; optional?: boolean }
 export type DayTemplate = { weekday: number; title: string; subtitle: string; sections: Section[]; rest?: boolean }
+import type { ProgrammeEdits } from '../lib/phase3'
 
 const item = (exerciseId: string, sets?: number, reps?: string, holdSeconds?: number, restSeconds?: number): PlanItem => ({ exerciseId, sets, reps, holdSeconds, restSeconds })
 const warmup = (): Section => ({ name: 'Warm-up', kind: 'warmup', items: [item('march', 1, '2 min'), item('cat-cow', 1, '8'), item('glute-bridge', 1, '10')] })
@@ -59,16 +60,17 @@ export function phaseFor(startDate: string, date: string): Phase {
   return phases[phases.length - 1]
 }
 
-export function planFor(date: string, sports: Sport[], phaseId = 'foundation'): DayTemplate {
+export function planFor(date: string, sports: Sport[], phaseId = 'foundation', edits: ProgrammeEdits = {}): DayTemplate {
   const base = programme.days[weekday(date)]
   const phase = phases.find(value => value.id === phaseId) ?? phases[0]
   const multiplier = Math.min(1, ...sports.map(sport => sportBlocks[sport].strengthMultiplier))
   const sections = base.sections.map(section => ({
     ...section,
-    items: section.items.map(planItem => {
-      if (section.kind !== 'strength') return planItem
-      const sets = planItem.sets ? Math.max(1, Math.ceil((planItem.sets + phase.extraStrengthSets) * multiplier)) : undefined
-      return { ...planItem, exerciseId: phase.swaps[planItem.exerciseId] ?? planItem.exerciseId, sets, holdSeconds: planItem.holdSeconds ? planItem.holdSeconds + phase.extraHoldSeconds : undefined }
+    items: section.items.map((planItem, index) => {
+      const chosen = { ...planItem, ...edits[`${base.weekday}:${section.name}:${index}`] }
+      if (section.kind !== 'strength') return chosen
+      const sets = chosen.sets ? Math.max(1, Math.ceil((chosen.sets + phase.extraStrengthSets) * multiplier)) : undefined
+      return { ...chosen, exerciseId: phase.swaps[chosen.exerciseId] ?? chosen.exerciseId, sets, holdSeconds: chosen.holdSeconds ? chosen.holdSeconds + phase.extraHoldSeconds : undefined }
     }),
   }))
   for (const sport of sports) {

@@ -1,4 +1,4 @@
-const CACHE = 'fountain-of-cali-v2'
+const CACHE = 'fountain-of-cali-v3'
 const CORE = ['/', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png']
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
@@ -32,4 +32,12 @@ self.addEventListener('fetch', event => {
     if (response.ok && url.pathname.startsWith('/_next/static/')) caches.open(CACHE).then(cache => cache.put(request, response.clone()))
     return response
   })))
+})
+self.addEventListener('push', event => {
+  const data = event.data?.json() || {}
+  event.waitUntil(self.registration.showNotification(data.title || 'Fountain of Cali', { body: data.body || 'Your daily practice is ready.', icon: '/icon-192.png', data: { url: data.url || '/' } }))
+})
+self.addEventListener('notificationclick', event => {
+  event.notification.close()
+  event.waitUntil(self.clients.openWindow(event.notification.data?.url || '/'))
 })

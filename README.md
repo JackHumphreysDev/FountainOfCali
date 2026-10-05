@@ -1,6 +1,6 @@
 # Fountain of Cali
 
-A personal strength and mobility planner for one person. The app includes a seven-day programme, sport primers and cooldowns, exercise guidance, a daily checklist, a history calendar, weekly summaries and streaks, optional result logging, timers, three automatic phases, offline support, and JSON backup.
+A personal strength and mobility planner with a daily checklist, history, editable weekly programme, body measurements, progress photos, optional cloud sync, reminders, and AI suggestions.
 
 ## Run locally
 
@@ -27,8 +27,12 @@ npm run build
 
 ## Your data
 
-Completion history is saved in this browser's `localStorage`. It does not sync across devices. Install from your browser’s Add to Home Screen menu for offline use after the first visit. Exercise videos require a connection. Use **Settings → Export JSON** for a backup and **Import JSON** to restore it. Import replaces the existing browser log after a confirmation.
+Training logs, measurements, and programme edits stay in browser storage until you explicitly save them to the cloud. Photos stay in IndexedDB until you explicitly upload them. **Settings → Export JSON** backs up training data and measurements, but not photos. Cloud save and load are separate actions with confirmation before replacing existing data. Install from your browser’s Add to Home Screen menu for offline use after the first visit.
 
 ## Deployment
 
-The app is a standard Next.js project and can be imported into Vercel from the GitHub repository. No environment variables or backend are needed. See [SPEC.md](SPEC.md) for the complete project plan and later milestones.
+Create a Supabase project, run [supabase/schema.sql](supabase/schema.sql) once in its SQL editor, and set Auth → URL Configuration → Site URL to the deployed origin. Copy [.env.example](.env.example) to `.env.local` and fill in the public Supabase URL and publishable key. Set the same public variables in Vercel for production.
+
+For closed-app reminders, generate a VAPID key pair and set `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, the Supabase server-only secret key, and a random `CRON_SECRET` in Vercel. The scheduled function in [vercel.json](vercel.json) sends at 09:00 UTC. Vercel cron must be enabled on the project. For optional AI suggestions, set `OPENAI_API_KEY` and `OWNER_EMAIL` as server-only Vercel secrets. The advice route accepts requests only from that email, sends recent training totals and weight trend to OpenAI on button click, and caches one result per day.
+
+See [SPEC.md](SPEC.md) for the project plan.

@@ -3,6 +3,7 @@ import { test } from 'node:test'
 import { exerciseById } from '../data/exercises'
 import { defaultSports, phaseFor, planFor, programme, sportBlocks } from '../data/programme'
 import { effectiveLog, itemKey, phaseIdFor, progress, streaks, validateBackup, validateImport, weeklySummary, type DayLog } from '../lib/training'
+import { validateBodyLogs, validateEdits } from '../lib/phase3'
 
 test('every scheduled movement has guidance and all seven days have a plan', () => {
   assert.equal(programme.days.length, 7)
@@ -69,4 +70,13 @@ test('backup validates results and migrates the original export', () => {
   assert.equal(validateBackup({ version: 2, startDate: '2026-10-05', logs: old }, '2026-10-06').startDate, '2026-10-05')
   assert.throws(() => validateBackup({ version: 2, startDate: '2026-02-30', logs: old }, '2026-10-06'))
   assert.throws(() => validateImport({ '2026-10-05': { sportFlags: [], completed: [], actuals: { x: { reps: -1 } } } }))
+})
+
+test('phase 3 backup validates measurements and programme edits', () => {
+  const data = { version: 3, startDate: '2026-10-05', logs: {}, bodyLogs: { '2026-10-05': { weightKg: 85.2, waistCm: 90 } }, edits: { '4:Strength & core:0': { exerciseId: 'pushup', sets: 4 } } }
+  assert.deepEqual(validateBackup(data, '2026-10-05').bodyLogs['2026-10-05'].weightKg, 85.2)
+  assert.equal(planFor('2026-10-08', [], 'foundation', data.edits)['sections'].find(section => section.kind === 'strength')!.items[0].exerciseId, 'pushup')
+  assert.throws(() => validateBodyLogs({ '2026-02-30': { weightKg: 85 } }))
+  assert.throws(() => validateEdits({ '4:Strength & core:0': { exerciseId: 'unknown' } }))
+  assert.throws(() => validateBackup({ ...data, bodyLogs: { '2026-10-05': { weightKg: -1 } } }, '2026-10-05'))
 })

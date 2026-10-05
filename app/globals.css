@@ -159,3 +159,13 @@ h1, h2, h3, p { margin-top: 0; }
 .offline-video { display: grid; place-items: center; height: 100%; padding: 20px; color: #d5e3c8; text-align: center; font-size: 13px; }
 .calendar-day.not-started { opacity: .35; }
 @media (max-width: 600px) { .summary-grid, .phase-roadmap { grid-template-columns: 1fr; }.summary-grid { gap: 8px; }.summary-card { flex-direction: row; align-items: center; justify-content: space-between; }.summary-card strong { font-size: 23px; }.timer-panel { left: 10px; right: 10px; bottom: 85px; justify-content: space-between; }.exercise-tools { padding-left: 49px; } }
+.progress-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.field { display: block; color: var(--muted); font-size: 11px; font-weight: 700; margin: 12px 0; }
+.field input, .field select, .field textarea { display: block; width: 100%; margin-top: 6px; border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: var(--surface-2); color: var(--text); font: inherit; }
+.field textarea { min-height: 75px; resize: vertical; }
+.metric-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.trend-chart { width: 100%; max-height: 180px; color: var(--lime); border-bottom: 1px solid var(--line); }
+.entry-list { display: grid; gap: 5px; margin-top: 20px; }.entry-list button { text-align: left; border: 1px solid var(--line); border-radius: 7px; padding: 9px; background: var(--surface-2); color: var(--text); font-size: 11px; }
+.photo-card, .programme-editor { margin-top: 16px; }.photo-upload { display: inline-block; cursor: pointer; }.photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; margin-top: 18px; }.photo-grid figure { margin: 0; }.photo-grid img { display: block; width: 100%; aspect-ratio: 3/4; object-fit: cover; border-radius: 9px; }.photo-grid figcaption { display: flex; justify-content: space-between; padding-top: 6px; color: var(--muted); font-size: 11px; }.photo-grid button { border: 0; background: none; color: var(--lime); cursor: pointer; }
+.programme-editor > p { color: var(--muted); font-size: 12px; }.programme-editor > .field { max-width: 250px; }.edit-section { border-top: 1px solid var(--line); margin-top: 17px; padding-top: 13px; }.edit-section h3 { font-size: 14px; }.edit-row { display: grid; grid-template-columns: 2fr .6fr .8fr .7fr auto; align-items: end; gap: 9px; }.edit-row .tool-button { margin-bottom: 12px; height: 36px; }
+@media (max-width: 750px) { .progress-layout { grid-template-columns: 1fr; }.edit-row { grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line); }.edit-row .field:first-child { grid-column: 1/-1; }.edit-row .tool-button { width: 100%; } }

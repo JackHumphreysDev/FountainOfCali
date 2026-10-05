@@ -10,15 +10,18 @@
     "test": "node --import tsx --test tests/*.test.ts"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.2",
     "next": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "latest",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "@types/web-push": "^3.6.4",
     "eslint": "latest",
     "eslint-config-next": "latest",
     "tailwindcss": "latest",
