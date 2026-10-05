@@ -15,11 +15,12 @@ export function Advice({ user, snapshot, onMessage }: { user: User | null; snaps
     try {
       const { data } = await cloud.auth.getSession()
       if (!data.session) throw new Error('Sign in to request advice.')
-      const response = await fetch('/api/advice', { method: 'POST', headers: { Authorization: `Bearer ${data.session.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(snapshot) })
+      const bodyLogs = Object.fromEntries(Object.entries(snapshot.bodyLogs).filter(([, entry]) => entry.weightKg !== undefined).map(([date, entry]) => [date, { date, weightKg: entry.weightKg }]))
+      const response = await fetch('/api/advice', { method: 'POST', headers: { Authorization: `Bearer ${data.session.access_token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ ...snapshot, bodyLogs }) })
       if (!response.ok) throw new Error(await response.text())
       setAdvice((await response.json()).advice)
     } catch (error) { onMessage(error instanceof Error ? error.message : 'Could not get advice.') }
     setBusy(false)
   }
-  return <div className="card preferences-card"><h2>Optional AI adjustment</h2><p>{enabled ? 'Clicking sends your recent training totals and weight trend to OpenAI. Photos and notes are never sent. One suggestion is saved per day.' : 'AI suggestions will be available after an OpenAI API key is connected.'}</p><button className="secondary-button" disabled={!enabled || !user || busy} onClick={() => void getAdvice()}>{busy ? 'Thinking…' : 'Suggest an adjustment'}</button>{advice && <p className="advice-result">{advice}</p>}</div>
+  return <div className="card preferences-card"><h2>Optional AI adjustment</h2><p>{enabled ? 'Clicking sends your recent training totals and weight trend to OpenAI. Food entries, photos and notes are never sent. One suggestion is saved per day.' : 'AI suggestions will be available after an OpenAI API key is connected.'}</p><button className="secondary-button" disabled={!enabled || !user || busy} onClick={() => void getAdvice()}>{busy ? 'Thinking…' : 'Suggest an adjustment'}</button>{advice && <p className="advice-result">{advice}</p>}</div>
 }

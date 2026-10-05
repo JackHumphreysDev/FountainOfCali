@@ -7,7 +7,7 @@ import { listPhotos, savePhoto } from '../lib/photos'
 import { validateBackup, type Logs } from '../lib/training'
 import type { BodyLogs, ProgrammeEdits } from '../lib/phase3'
 
-export type Snapshot = { version: 4; startDate: string; logs: Logs; bodyLogs: BodyLogs; edits: ProgrammeEdits; stepTarget: number }
+export type Snapshot = { version: 4; startDate: string; logs: Logs; bodyLogs: BodyLogs; edits: ProgrammeEdits; stepTarget: number; calorieTarget?: number }
 type Props = { snapshot: Snapshot; user: User | null; onLoad: (value: Snapshot) => void; onMessage: (message: string) => void }
 
 export function CloudPanel({ snapshot, user, onLoad, onMessage }: Props) {
@@ -47,7 +47,7 @@ export function CloudPanel({ snapshot, user, onLoad, onMessage }: Props) {
     if (error) throw error
     if (!data) throw new Error('There is no cloud copy yet.')
     const restored = validateBackup(data.payload, snapshot.startDate)
-    if (!window.confirm(`Replace this device’s training data with the cloud copy (${Object.keys(restored.logs).length} logged days, ${Object.keys(restored.bodyLogs).length} measurements)? Export a backup first if you need both.`)) return
+    if (!window.confirm(`Replace this device’s training data with the cloud copy (${Object.keys(restored.logs).length} training days, ${Object.keys(restored.bodyLogs).length} progress or food days)? Export a backup first if you need both.`)) return
     onLoad({ version: 4, ...restored })
     onMessage('Cloud data loaded onto this device.')
   })

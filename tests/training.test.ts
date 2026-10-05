@@ -97,3 +97,14 @@ test('section difficulty keeps completion keys stable and step data survives bac
   assert.throws(() => validateBackup({ ...backup, stepTarget: 500 }, date))
   assert.throws(() => validateImport({ [date]: { sportFlags: [], completed: [], sectionDifficulty: { x: 'extreme' } } }))
 })
+
+test('calorie diary round-trips in backups and rejects malformed food', () => {
+  const date = '2026-10-05'
+  const backup = { version: 4, startDate: date, logs: {}, bodyLogs: { [date]: { date, steps: 11000, foodEntries: [{ id: 'meal-1', name: 'Lunch', calories: 650 }] } }, edits: {}, stepTarget: 10000, calorieTarget: 2200 }
+  const restored = validateBackup(backup, date)
+  assert.equal(restored.calorieTarget, 2200)
+  assert.deepEqual(restored.bodyLogs[date].foodEntries, backup.bodyLogs[date].foodEntries)
+  assert.throws(() => validateBackup({ ...backup, calorieTarget: 500 }, date))
+  assert.throws(() => validateBackup({ ...backup, bodyLogs: { [date]: { foodEntries: [{ id: 'x', name: 'Bad', calories: -1 }] } } }, date))
+  assert.equal(validateBackup({ ...backup, calorieTarget: undefined }, date).calorieTarget, undefined)
+})

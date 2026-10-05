@@ -1,5 +1,5 @@
 import { defaultSports, phaseFor, phases, planFor, weekday, type Difficulty, type Sport } from '../data/programme'
-import { defaultStepTarget, validStepTarget, validateBodyLogs, validateEdits, type BodyLogs, type ProgrammeEdits } from './phase3'
+import { defaultStepTarget, validCalorieTarget, validStepTarget, validateBodyLogs, validateEdits, type BodyLogs, type ProgrammeEdits } from './phase3'
 
 export type DayLog = {
   sportFlags: Sport[]
@@ -119,12 +119,13 @@ export function validateImport(value: unknown): Logs {
   return logs
 }
 
-export function validateBackup(value: unknown, fallbackStartDate: string): { startDate: string; logs: Logs; bodyLogs: BodyLogs; edits: ProgrammeEdits; stepTarget: number } {
+export function validateBackup(value: unknown, fallbackStartDate: string): { startDate: string; logs: Logs; bodyLogs: BodyLogs; edits: ProgrammeEdits; stepTarget: number; calorieTarget?: number } {
   if (typeof value === 'object' && value !== null && 'version' in value) {
     const backup = value as Record<string, unknown>
     if (![2, 3, 4].includes(Number(backup.version)) || typeof backup.startDate !== 'string' || !validDate(backup.startDate)) throw new Error('Backup has an invalid version or start date.')
     if (backup.version === 4 && !validStepTarget(backup.stepTarget)) throw new Error('Backup has an invalid step target.')
-    return { startDate: backup.startDate, logs: validateImport(backup.logs), bodyLogs: Number(backup.version) >= 3 ? validateBodyLogs(backup.bodyLogs ?? {}) : {}, edits: Number(backup.version) >= 3 ? validateEdits(backup.edits ?? {}) : {}, stepTarget: backup.version === 4 ? Number(backup.stepTarget) : defaultStepTarget }
+    if (backup.calorieTarget !== undefined && !validCalorieTarget(backup.calorieTarget)) throw new Error('Backup has an invalid calorie target.')
+    return { startDate: backup.startDate, logs: validateImport(backup.logs), bodyLogs: Number(backup.version) >= 3 ? validateBodyLogs(backup.bodyLogs ?? {}) : {}, edits: Number(backup.version) >= 3 ? validateEdits(backup.edits ?? {}) : {}, stepTarget: backup.version === 4 ? Number(backup.stepTarget) : defaultStepTarget, calorieTarget: backup.calorieTarget as number | undefined }
   }
   const logs = validateImport(value)
   return { startDate: Object.keys(logs).sort()[0] ?? fallbackStartDate, logs, bodyLogs: {}, edits: {}, stepTarget: defaultStepTarget }
