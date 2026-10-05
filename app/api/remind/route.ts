@@ -8,7 +8,10 @@ export async function GET(request: Request) {
   const client = createClient(url, key, { auth: { persistSession: false } })
   const today = new Date().toISOString().slice(0, 10)
   const { data, error } = await client.from('push_subscriptions').select('endpoint,subscription,last_sent').eq('hour_utc', 9).limit(1000)
-  if (error) return new Response('Subscription lookup failed', { status: 500 })
+  if (error) {
+    console.error('Subscription lookup failed', error.code, error.message)
+    return new Response(`Subscription lookup failed (${error.code})`, { status: 500 })
+  }
   webpush.setVapidDetails('https://fountain-of-cali.vercel.app', vapidPublic, vapidPrivate)
   let sent = 0
   for (const row of data ?? []) {

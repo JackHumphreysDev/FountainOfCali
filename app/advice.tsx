@@ -6,6 +6,7 @@ import { cloud } from '../lib/cloud'
 import type { Snapshot } from './cloud-panel'
 
 export function Advice({ user, snapshot, onMessage }: { user: User | null; snapshot: Snapshot; onMessage: (message: string) => void }) {
+  const enabled = process.env.NEXT_PUBLIC_AI_ENABLED === 'true'
   const [advice, setAdvice] = useState('')
   const [busy, setBusy] = useState(false)
   const getAdvice = async () => {
@@ -20,5 +21,5 @@ export function Advice({ user, snapshot, onMessage }: { user: User | null; snaps
     } catch (error) { onMessage(error instanceof Error ? error.message : 'Could not get advice.') }
     setBusy(false)
   }
-  return <div className="card preferences-card"><h2>Optional AI adjustment</h2><p>Ask for a brief training suggestion. Clicking sends your recent training totals and weight trend to OpenAI. Photos and notes are never sent. One suggestion is saved per day.</p><button className="secondary-button" disabled={!user || busy} onClick={() => void getAdvice()}>{busy ? 'Thinking…' : 'Suggest an adjustment'}</button>{advice && <p className="advice-result">{advice}</p>}</div>
+  return <div className="card preferences-card"><h2>Optional AI adjustment</h2><p>{enabled ? 'Clicking sends your recent training totals and weight trend to OpenAI. Photos and notes are never sent. One suggestion is saved per day.' : 'AI suggestions will be available after an OpenAI API key is connected.'}</p><button className="secondary-button" disabled={!enabled || !user || busy} onClick={() => void getAdvice()}>{busy ? 'Thinking…' : 'Suggest an adjustment'}</button>{advice && <p className="advice-result">{advice}</p>}</div>
 }
