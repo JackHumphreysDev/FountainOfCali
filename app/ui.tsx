@@ -15,6 +15,7 @@ import type { User } from '@supabase/supabase-js'
 type Tab = 'today' | 'history' | 'progress' | 'programme' | 'settings'
 const storageKey = 'fountain-of-cali:v1'
 const startDateKey = 'fountain-of-cali:start-date'
+const ownerUserId = '2bf23e90-05ae-4dbe-b8c0-446cb83d816a'
 type Timer = { label: string; duration: number; remaining: number; running: boolean; endAt: number }
 const sportNames: Record<Sport, string> = { football: 'Football', golf: 'Golf', bouldering: 'Bouldering' }
 const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -28,6 +29,7 @@ export function App() {
   const [bodyLogs, setBodyLogs] = useState<BodyLogs>({})
   const [edits, setEdits] = useState<ProgrammeEdits>({})
   const [cloudUser, setCloudUser] = useState<User | null>(null)
+  const [authReady, setAuthReady] = useState(!cloud)
   const [ready, setReady] = useState(false)
   const [detail, setDetail] = useState<Exercise | null>(null)
   const [month, setMonth] = useState('')
@@ -69,7 +71,7 @@ export function App() {
   useEffect(() => { if (ready) localStorage.setItem('fountain-of-cali:light', String(light)) }, [light, ready])
   useEffect(() => {
     if (!cloud) return
-    void cloud.auth.getUser().then(({ data }) => setCloudUser(data.user))
+    void cloud.auth.getSession().then(({ data }) => { setCloudUser(data.session?.user ?? null); setAuthReady(true) }).catch(() => setAuthReady(true))
     const { data } = cloud.auth.onAuthStateChange((_event, session) => setCloudUser(session?.user ?? null))
     return () => data.subscription.unsubscribe()
   }, [])
@@ -98,6 +100,8 @@ export function App() {
   }, [detail])
 
   if (!ready || !today || !selected || !startDate) return <main className="loading">Loading your plan…</main>
+  if (process.env.NODE_ENV === 'production' && (!cloud || !authReady)) return <main className="loading">{cloud ? 'Checking sign-in…' : 'Sign-in is unavailable.'}</main>
+  if (process.env.NODE_ENV === 'production' && cloudUser?.id !== ownerUserId) return <div className="app"><main className="login-shell"><div className="brand"><span className="brand-mark">✳</span><span>FOUNTAIN<span className="brand-sub"> OF CALI</span></span></div><h1>Owner sign-in</h1><p>This private training app is available to its owner only.</p><CloudPanel snapshot={{ version: 3, startDate, logs, bodyLogs, edits }} user={null} onLoad={() => {}} onMessage={setMessage} />{message && <p role="status">{message}</p>}</main></div>
 
   const log = effectiveLog(logs, selected)
   const phaseId = phaseIdFor(logs, selected, startDate)
