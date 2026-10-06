@@ -250,7 +250,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .exercise-entry.done .check { background: var(--lime); border-color: var(--lime); }
 .exercise-entry.done .exercise-name { text-decoration: none; color: var(--text); }
 .exercise-info { gap: 16px; }
-.exercise-play { width: 48px; height: 48px; flex: none; display: grid; place-items: center; border-radius: 10px; background: var(--surface-2); color: var(--muted); font-size: 28px; }
+.exercise-play { width: 68px; height: 52px; flex: none; display: grid; place-items: center; border-radius: 10px; background: var(--surface-2) center / cover; color: #fff; font-size: 28px; text-shadow: 0 1px 8px #06131a; }
 .exercise-name { font-size: 17px; }.exercise-meta { font-size: 13px; }
 .exercise-tools { padding-left: 82px; }
 .tool-button { font-size: 12px; padding: 7px 10px; }
